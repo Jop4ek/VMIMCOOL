@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>ВМИМ Погода</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── VARS ── */
+:root {
+  --nav:66px; --bg:#080d1a; --bg2:#0f1624; --bg3:#18212f;
+  --b:rgba(255,255,255,.07); --b2:rgba(255,255,255,.12);
+  --tx:#f0f4fb; --dim:#8b9ab5; --mu:#3d4f66;
+  --blu:#38bdf8; --ind:#818cf8; --grn:#34d399; --org:#fb923c; --yel:#fbbf24; --red:#f87171;
+  --r:18px; --rs:12px;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html { height:100%; }
+body {
+  font-family:'Nunito',sans-serif; background:var(--bg); color:var(--tx);
+  overflow-x:hidden; overflow-y:auto;
+  padding-bottom:calc(var(--nav) + env(safe-area-inset-bottom,0px) + 20px);
+  min-height:100%;
+}
+
+/* ── AURORA ── */
+.aurora { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.ab { position:absolute; border-radius:50%; filter:blur(90px); opacity:.15; }
+.ab1 { width:480px; height:480px; background:#38bdf8; top:-160px; left:-120px; animation:bd1 20s ease-in-out infinite alternate; }
+.ab2 { width:380px; height:380px; background:#818cf8; bottom:-80px; right:-90px; animation:bd2 25s ease-in-out infinite alternate; }
+.ab3 { width:260px; height:260px; background:#34d399; top:50%; left:38%; animation:bd3 17s ease-in-out infinite alternate; }
+@keyframes bd1 { to { transform:translate(50px,40px) scale(1.2); } }
+@keyframes bd2 { to { transform:translate(-40px,-30px) scale(1.15); } }
+@keyframes bd3 { to { transform:translate(-30px,20px) scale(0.85); } }
+
+/* ── SVG WEATHER ANIMATIONS ── (CSS class based, no inline style) */
+.wx-sun-group { animation:wxSunPulse 3.5s ease-in-out infinite; transform-origin:center; transform-box:fill-box; }
+.wx-rays { animation:wxSunSpin 14s linear infinite; transform-origin:center; transform-box:fill-box; }
+.wx-cloud { animation:wxCloudDrift 6s ease-in-out infinite; }
+.wx-cloud2 { animation:wxCloudDrift 8s ease-in-out infinite reverse; animation-delay:-3s; }
+.wx-cloud-dark { animation:wxCloudDrift 6s ease-in-out infinite; }
+.wx-moon { animation:wxMoonGlow 3s ease-in-out infinite; }
+.wx-fog1 { animation:wxFog 4s ease-in-out infinite; }
+.wx-fog2 { animation:wxFog 4s ease-in-out infinite; animation-delay:-1.5s; }
+.wx-fog3 { animation:wxFog 4s ease-in-out infinite; animation-delay:-3s; }
+.wx-lightning { animation:wxLightning 2.8s ease-in-out infinite; }
+.wx-star { animation:wxStar 2s ease-in-out infinite; }
+
+/* Rain drops — each uses a unique delay via nth-child since we can't inline */
+.wx-rain line { stroke:#7dd3fc; stroke-width:2.2; stroke-linecap:round; opacity:.85; }
+.wx-rain line:nth-child(1)  { animation:wxRain 1.1s .00s ease-in infinite; }
+.wx-rain line:nth-child(2)  { animation:wxRain 1.1s .10s ease-in infinite; }
+.wx-rain line:nth-child(3)  { animation:wxRain 1.1s .20s ease-in infinite; }
+.wx-rain line:nth-child(4)  { animation:wxRain 1.1s .30s ease-in infinite; }
+.wx-rain line:nth-child(5)  { animation:wxRain 1.1s .40s ease-in infinite; }
+.wx-rain line:nth-child(6)  { animation:wxRain 1.1s .50s ease-in infinite; }
+.wx-rain line:nth-child(7)  { animation:wxRain 1.1s .60s ease-in infinite; }
+.wx-rain line:nth-child(8)  { animation:wxRain 1.1s .70s ease-in infinite; }
+.wx-rain line:nth-child(9)  { animation:wxRain 1.1s .15s ease-in infinite; }
+.wx-rain line:nth-child(10) { animation:wxRain 1.1s .35s ease-in infinite; }
+.wx-rain line:nth-child(11) { animation:wxRain 1.1s .55s ease-in infinite; }
+.wx-rain line:nth-child(12) { animation:wxRain 1.1s .05s ease-in infinite; }
+.wx-rain line:nth-child(13) { animation:wxRain 1.1s .45s ease-in infinite; }
+.wx-rain line:nth-child(14) { animation:wxRain 1.1s .25s ease-in infinite; }
+
+/* Snow */
+.wx-snow text:nth-child(1)  { animation:wxSnow 1.4s .00s ease-in infinite; }
+.wx-snow text:nth-child(2)  { animation:wxSnow 1.4s .18s ease-in infinite; }
+.wx-snow text:nth-child(3)  { animation:wxSnow 1.4s .36s ease-in infinite; }
+.wx-snow text:nth-child(4)  { animation:wxSnow 1.4s .54s ease-in infinite; }
+.wx-snow text:nth-child(5)  { animation:wxSnow 1.4s .72s ease-in infinite; }
+.wx-snow text:nth-child(6)  { animation:wxSnow 1.4s .90s ease-in infinite; }
+.wx-snow text:nth-child(7)  { animation:wxSnow 1.4s .08s ease-in infinite; }
+.wx-snow text:nth-child(8)  { animation:wxSnow 1.4s .26s ease-in infinite; }
+.wx-snow text:nth-child(9)  { animation:wxSnow 1.4s .44s ease-in infinite; }
+
+/* Stars */
+.wx-star:nth-child(1)  { animation:wxStar 1.8s .0s ease-in-out infinite; }
+.wx-star:nth-child(2)  { animation:wxStar 2.2s .3s ease-in-out infinite; }
+.wx-star:nth-child(3)  { animation:wxStar 1.6s .6s ease-in-out infinite; }
+.wx-star:nth-child(4)  { animation:wxStar 2.5s .1s ease-in-out infinite; }
+.wx-star:nth-child(5)  { animation:wxStar 1.9s .8s ease-in-out infinite; }
+.wx-star:nth-child(6)  { animation:wxStar 2.1s .4s ease-in-out infinite; }
+.wx-star:nth-child(7)  { animation:wxStar 1.7s .7s ease-in-out infinite; }
+.wx-star:nth-child(8)  { animation:wxStar 2.3s .2s ease-in-out infinite; }
+.wx-star:nth-child(9)  { animation:wxStar 1.5s .9s ease-in-out infinite; }
+.wx-star:nth-child(10) { animation:wxStar 2.0s .5s ease-in-out infinite; }
+
+@keyframes wxSunPulse { 0%,100%{opacity:.85;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
+@keyframes wxSunSpin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes wxCloudDrift { 0%,100%{transform:translateX(0)} 50%{transform:translateX(8px)} }
+@keyframes wxMoonGlow { 0%,100%{filter:drop-shadow(0 0 6px rgba(251,191,36,.35))} 50%{filter:drop-shadow(0 0 18px rgba(251,191,36,.75))} }
+@keyframes wxFog { 0%,100%{transform:translateX(0);opacity:.4} 50%{transform:translateX(12px);opacity:.6} }
+@keyframes wxLightning { 0%,88%,100%{opacity:0} 90%,95%{opacity:1} }
+@keyframes wxRain { 0%{transform:translateY(-16px);opacity:0} 50%{opacity:1} 100%{transform:translateY(52px);opacity:0} }
+@keyframes wxSnow { 0%{transform:translateY(-16px) rotate(0deg);opacity:0} 50%{opacity:1} 100%{transform:translateY(52px) rotate(200deg);opacity:0} }
+@keyframes wxStar  { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.4)} }
+
+/* ── LAYOUT ── */
+.page { position:relative; z-index:1; display:none; padding:0 13px; }
+.page.active { display:block; animation:pgIn .3s ease; }
+@keyframes pgIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── TOPBAR ── */
+.topbar { position:relative; z-index:2; display:flex; align-items:center; justify-content:space-between; padding:14px 13px 0; }
+.brand { display:flex; align-items:center; gap:8px; }
+.brand-name { font-size:16px; font-weight:900; letter-spacing:-.5px; background:linear-gradient(135deg,var(--blu),var(--ind)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.chip { display:flex; align-items:center; gap:5px; background:var(--bg3); border:1px solid var(--b2); border-radius:30px; padding:6px 12px; font-size:13px; font-weight:700; color:var(--dim); cursor:pointer; transition:all .18s; user-select:none; }
+.chip:active { transform:scale(.94); }
+.greendot { width:7px; height:7px; border-radius:50%; background:var(--grn); flex-shrink:0; }
+
+/* ── CARDS ── */
+.card { background:rgba(255,255,255,.04); border:1px solid var(--b); border-radius:var(--r); padding:16px; margin-bottom:10px; }
+.card-blue { background:linear-gradient(135deg,rgba(56,189,248,.09),rgba(129,140,248,.06)); border-color:rgba(56,189,248,.18); }
+.card-green { background:linear-gradient(135deg,rgba(52,211,153,.09),rgba(56,189,248,.05)); border-color:rgba(52,211,153,.18); }
+.card-orange { background:linear-gradient(135deg,rgba(251,146,60,.1),rgba(251,191,36,.06)); border-color:rgba(251,146,60,.2); }
+.card-prem { background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(251,146,60,.07)); border-color:rgba(251,191,36,.22); }
+.card-warn { background:rgba(248,113,113,.06); border-color:rgba(248,113,113,.18); }
+.card-ok { background:rgba(52,211,153,.06); border-color:rgba(52,211,153,.18); }
+
+/* ── SECTION LABEL ── */
+.sl { font-size:11px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--mu); margin:16px 0 9px; display:flex; align-items:center; gap:8px; }
+.sl::after { content:''; flex:1; height:1px; background:var(--b); }
+
+/* ── WEATHER HERO ── */
+.wxhero { border-radius:var(--r); margin-bottom:10px; padding:10px 16px 18px; text-align:center; position:relative; overflow:hidden; background:linear-gradient(160deg,rgba(56,189,248,.11),rgba(129,140,248,.07) 60%,transparent); border:1px solid rgba(56,189,248,.17); }
+.wxscene { width:100%; height:150px; display:flex; align-items:center; justify-content:center; }
+.wxscene svg { overflow:visible; }
+.temp-big { font-size:74px; font-weight:900; line-height:.92; letter-spacing:-4px; background:linear-gradient(160deg,#fff 25%,var(--blu)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.wx-feel { font-size:13px; color:var(--dim); margin-top:4px; }
+.wx-desc { font-size:16px; font-weight:700; color:var(--dim); margin-top:5px; text-transform:capitalize; }
+
+/* ── STAT PILLS ── */
+.srow { display:flex; gap:8px; margin-bottom:10px; }
+.sp { flex:1; background:rgba(255,255,255,.04); border:1px solid var(--b); border-radius:var(--rs); padding:12px 6px; text-align:center; }
+.sp-i { font-size:17px; margin-bottom:4px; }
+.sp-v { font-size:15px; font-weight:800; }
+.sp-l { font-size:10px; color:var(--mu); margin-top:2px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
+
+/* ── ADVICE ── */
+.advice { display:flex; align-items:flex-start; gap:12px; padding:13px 14px; border-radius:var(--rs); margin-bottom:10px; }
+.adv-ico { width:44px; height:44px; border-radius:13px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:23px; }
+.adv-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+.adv-text { font-size:13px; color:var(--dim); line-height:1.5; }
+
+/* ── ALERTS ── */
+.alert { display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border-radius:var(--rs); margin-bottom:8px; }
+.alt-i { font-size:18px; flex-shrink:0; margin-top:1px; }
+.alt-t { font-size:13px; color:var(--dim); line-height:1.45; }
+
+/* ── HOURLY ── */
+.hourly { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:10px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.hourly::-webkit-scrollbar { display:none; }
+.hc { flex-shrink:0; min-width:65px; text-align:center; background:rgba(255,255,255,.04); border:1px solid var(--b); border-radius:13px; padding:10px 7px; }
+.hc.now { background:linear-gradient(160deg,rgba(56,189,248,.17),rgba(129,140,248,.11)); border-color:rgba(56,189,248,.33); }
+.hc-t { font-size:11px; font-weight:700; color:var(--mu); margin-bottom:6px; }
+.hc-i { font-size:24px; margin-bottom:4px; line-height:1; }
+.hc-v { font-size:14px; font-weight:800; }
+.hc-r { font-size:11px; color:var(--blu); margin-top:3px; font-weight:700; }
+
+/* ── WEEK ── */
+.wrow { display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--b); }
+.wrow:last-child { border-bottom:none; padding-bottom:0; }
+.wday { width:84px; }
+.wday-n { font-size:14px; font-weight:800; }
+.wday-d { font-size:11px; color:var(--mu); margin-top:1px; }
+.wico { font-size:28px; width:36px; text-align:center; flex-shrink:0; }
+.wdsc { flex:1; font-size:13px; color:var(--dim); padding:0 8px; line-height:1.3; }
+.wtmp { font-size:15px; font-weight:800; white-space:nowrap; }
+.wtmp span { font-size:12px; font-weight:600; color:var(--mu); }
+
+/* ── ASTRO ── */
+.agrid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:10px; }
+.abox { background:rgba(255,255,255,.04); border:1px solid var(--b); border-radius:13px; padding:15px 10px; text-align:center; }
+.abox-i { font-size:30px; margin-bottom:6px; }
+.abox-l { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--mu); margin-bottom:4px; }
+.abox-v { font-size:20px; font-weight:900; }
+.moonhero { background:linear-gradient(135deg,rgba(129,140,248,.11),rgba(251,191,36,.07)); border:1px solid rgba(129,140,248,.2); border-radius:var(--r); padding:20px 16px; text-align:center; margin-bottom:10px; }
+.moon-em { font-size:60px; }
+.moon-n { font-size:18px; font-weight:900; margin-top:9px; }
+.moon-s { font-size:13px; color:var(--dim); margin-top:4px; }
+
+/* ── FACT ── */
+.facthero { border-radius:var(--r); padding:20px 18px; position:relative; overflow:hidden; margin-bottom:10px; }
+.fdeco { position:absolute; right:-6px; top:-6px; font-size:85px; opacity:.07; pointer-events:none; }
+.ftag { display:inline-block; border-radius:20px; padding:4px 11px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; margin-bottom:12px; }
+.fbody { font-size:15px; line-height:1.7; }
+.fmeta { font-family:'Space Mono',monospace; font-size:11px; color:var(--mu); margin-top:13px; }
+
+/* ── DETAIL ROW ── */
+.drow { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--b); }
+.drow:last-child { border-bottom:none; }
+.dleft { display:flex; align-items:center; gap:9px; font-size:14px; color:var(--dim); }
+.dico { font-size:17px; width:22px; text-align:center; }
+.dval { font-size:14px; font-weight:800; }
+
+/* ── PILLS ── */
+.pill { display:inline-flex; align-items:center; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:800; }
+.pg { background:rgba(52,211,153,.14); color:var(--grn); border:1px solid rgba(52,211,153,.28); }
+.py { background:rgba(251,191,36,.14); color:var(--yel); border:1px solid rgba(251,191,36,.28); }
+.po { background:rgba(251,146,60,.14); color:var(--org); border:1px solid rgba(251,146,60,.28); }
+.pr { background:rgba(248,113,113,.14); color:var(--red); border:1px solid rgba(248,113,113,.28); }
+
+/* ── PROFILE ── */
+.psumm { border-radius:var(--r); padding:16px; margin-bottom:14px; }
+.psumm-h { font-size:15px; font-weight:900; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.psrow { display:flex; align-items:flex-start; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--b); }
+.psrow:last-child { border-bottom:none; }
+.psl { font-size:12px; color:var(--mu); }
+.psv { font-size:12px; font-weight:700; text-align:right; max-width:60%; line-height:1.35; }
+
+.oc { display:flex; align-items:center; gap:11px; background:rgba(255,255,255,.03); border:1px solid var(--b); border-radius:var(--rs); padding:12px 13px; margin-bottom:7px; cursor:pointer; transition:all .15s; user-select:none; }
+.oc:active { transform:scale(.97); }
+.oc.sel { background:rgba(56,189,248,.08); border-color:rgba(56,189,248,.32); }
+.oc-i { font-size:22px; flex-shrink:0; width:32px; text-align:center; }
+.oc-b { flex:1; }
+.oc-n { font-size:14px; font-weight:700; }
+.oc-h { font-size:11px; color:var(--mu); margin-top:1px; }
+.oc-chk { font-size:16px; color:var(--blu); opacity:0; transition:opacity .15s; }
+.oc.sel .oc-chk { opacity:1; }
+
+.cc { display:flex; align-items:center; gap:11px; background:rgba(255,255,255,.03); border:1px solid var(--b); border-radius:var(--rs); padding:11px 13px; margin-bottom:7px; cursor:pointer; transition:all .15s; user-select:none; }
+.cc.on { background:rgba(52,211,153,.07); border-color:rgba(52,211,153,.28); }
+.cc:active { transform:scale(.97); }
+.cb { width:23px; height:23px; border-radius:7px; flex-shrink:0; border:2px solid var(--b2); display:flex; align-items:center; justify-content:center; transition:all .15s; }
+.cc.on .cb { background:var(--grn); border-color:var(--grn); }
+.cc-n { font-size:13px; font-weight:700; flex:1; }
+.cc-h { font-size:11px; color:var(--mu); }
+
+.hgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-bottom:10px; }
+.hbtn { background:rgba(255,255,255,.04); border:1px solid var(--b); border-radius:var(--rs); padding:11px 4px; text-align:center; font-size:13px; font-weight:800; cursor:pointer; transition:all .15s; user-select:none; }
+.hbtn.sel { background:rgba(56,189,248,.12); border-color:var(--blu); color:var(--blu); }
+.hbtn:active { transform:scale(.94); }
+
+.psec { font-size:11px; font-weight:800; letter-spacing:1.8px; text-transform:uppercase; color:var(--mu); margin:16px 0 9px; }
+
+/* ── NAV ── */
+.bnav { position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav) + env(safe-area-inset-bottom,0px)); background:rgba(8,13,26,.95); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-top:1px solid var(--b); display:flex; z-index:100; }
+.nb { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; border:none; background:none; font-family:'Nunito',sans-serif; font-size:10px; font-weight:800; letter-spacing:.3px; text-transform:uppercase; color:var(--mu); padding:8px 3px calc(8px + env(safe-area-inset-bottom,0px)); position:relative; transition:color .18s; }
+.nb-i { font-size:20px; transition:transform .2s; line-height:1; }
+.nb.active { color:var(--blu); }
+.nb.active .nb-i { transform:scale(1.2); }
+.nb.active::before { content:''; position:absolute; top:0; left:22%; right:22%; height:2px; background:linear-gradient(90deg,transparent,var(--blu),transparent); border-radius:0 0 3px 3px; }
+
+/* ── MODAL ── */
+.modal { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.75); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); display:none; align-items:flex-end; }
+.modal.open { display:flex; }
+.mbox { width:100%; background:var(--bg2); border:1px solid var(--b); border-radius:24px 24px 0 0; padding:20px 16px calc(28px + env(safe-area-inset-bottom,0px)); animation:sup .3s cubic-bezier(.32,.72,0,1); max-height:85vh; overflow-y:auto; }
+@keyframes sup { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.mhandle { width:36px; height:4px; background:var(--b2); border-radius:4px; margin:0 auto 17px; }
+.mtitle { font-size:18px; font-weight:900; margin-bottom:5px; }
+.mhint { font-size:13px; color:var(--dim); margin-bottom:14px; }
+.ci { width:100%; background:var(--bg3); border:1px solid var(--b2); border-radius:var(--rs); padding:13px 14px; font-family:'Nunito',sans-serif; font-size:16px; color:var(--tx); outline:none; margin-bottom:10px; transition:border-color .2s; }
+.ci:focus { border-color:var(--blu); }
+.ci::placeholder { color:var(--mu); }
+.btnm { width:100%; padding:14px; border:none; border-radius:var(--rs); background:linear-gradient(135deg,var(--blu),var(--ind)); font-family:'Nunito',sans-serif; font-size:15px; font-weight:900; color:#fff; cursor:pointer; transition:opacity .2s,transform .15s; }
+.btnm:active { opacity:.85; transform:scale(.98); }
+.ierr { color:var(--red); font-size:13px; text-align:center; margin-top:8px; display:none; }
+
+/* ── PRIVACY ── */
+.priv { position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.88); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); display:none; align-items:flex-end; }
+.pbox { width:100%; background:var(--bg2); border:1px solid var(--b); border-radius:24px 24px 0 0; padding:24px 16px calc(36px + env(safe-area-inset-bottom,0px)); animation:sup .4s cubic-bezier(.32,.72,0,1); max-height:92vh; overflow-y:auto; }
+.pbadge { display:inline-flex; align-items:center; gap:7px; background:rgba(56,189,248,.1); border:1px solid rgba(56,189,248,.22); border-radius:30px; padding:5px 13px; font-size:11px; font-weight:800; color:var(--blu); letter-spacing:.8px; text-transform:uppercase; margin-bottom:14px; }
+.ptitle { font-size:21px; font-weight:900; margin-bottom:9px; line-height:1.2; }
+.pintro { font-size:14px; color:var(--dim); line-height:1.55; margin-bottom:16px; }
+.pi { display:flex; align-items:flex-start; gap:10px; margin-bottom:11px; }
+.pi-i { font-size:18px; flex-shrink:0; margin-top:2px; }
+.pi-t { font-size:13px; color:var(--dim); line-height:1.5; }
+.pi-t strong { color:var(--tx); font-weight:800; }
+.pnote { font-size:12px; color:var(--mu); text-align:center; margin-top:12px; }
+.pnote a { color:var(--ind); }
+
+/* ── MISC ── */
+.wish { font-size:13px; color:var(--mu); font-style:italic; text-align:center; padding:9px 0 5px; }
+.ad { background:rgba(75,85,99,.08); border:1px solid rgba(75,85,99,.17); border-radius:var(--rs); padding:10px 13px; font-size:12px; color:var(--mu); margin-bottom:10px; }
+.ad a { color:var(--ind); font-weight:700; }
+.spacer { height:16px; }
+.gap { height:12px; }
+.lbox { text-align:center; padding:60px 16px; color:var(--mu); }
+.spin { width:36px; height:36px; border:3px solid var(--b); border-top-color:var(--blu); border-radius:50%; animation:spi .75s linear infinite; margin:0 auto 12px; }
+@keyframes spi { to { transform:rotate(360deg) } }
+.ltxt { font-size:14px; font-weight:700; }
+.ebox { background:rgba(248,113,113,.07); border:1px solid rgba(248,113,113,.18); border-radius:var(--rs); padding:16px; text-align:center; color:var(--red); font-size:14px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<!-- AURORA -->
+<div class="aurora"><div class="ab ab1"></div><div class="ab ab2"></div><div class="ab ab3"></div></div>
+
+<!-- PRIVACY -->
+<div class="priv" id="priv">
+<div class="pbox">
+  <div class="pbadge">🔒 Конфиденциальность</div>
+  <div class="ptitle">Прежде чем начать</div>
+  <div class="pintro">Приложение использует данные для персонализации прогноза. Вот что именно и зачем:</div>
+  <div class="pi"><span class="pi-i">📍</span><span class="pi-t"><strong>Город и геолокация</strong> — для получения погоды. Хранится только на устройстве, не на сервере.</span></div>
+  <div class="pi"><span class="pi-i">👗</span><span class="pi-t"><strong>Стиль одежды, активность, транспорт</strong> — для персонализации советов. Не передаются третьим лицам.</span></div>
+  <div class="pi"><span class="pi-i">💊</span><span class="pi-t"><strong>Данные о здоровье</strong> — только локально для погодных предупреждений. На сервер не отправляются никогда.</span></div>
+  <div class="pi"><span class="pi-i">🌤</span><span class="pi-t"><strong>Запросы к OpenWeatherMap</strong> — содержат только название города, без личных данных.</span></div>
+  <div class="pi"><span class="pi-i">📢</span><span class="pi-t"><strong>Реклама</strong> — показывается бесплатным пользователям без персонального таргетинга.</span></div>
+  <button class="btnm" onclick="okPriv()">Понятно, продолжить →</button>
+  <div class="pnote">Продолжая использование, вы соглашаетесь с <a href="#">Политикой конфиденциальности</a></div>
+</div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand"><span style="font-size:21px">⛅</span><span class="brand-name">ВМИМ Погода</span></div>
+  <div style="display:flex;gap:7px">
+    <div class="chip" onclick="openCity()"><span class="greendot"></span><span id="cityLbl">…</span></div>
+    <div class="chip" style="padding:6px 9px;font-size:15px" onclick="goProfile()">⚙️</div>
+  </div>
+</div>
+
+<!-- PAGES -->
+<div class="page active" id="page-now"><div id="c-now"><div class="lbox"><div class="spin"></div><div class="ltxt">Получаю погоду…</div></div></div></div>
+<div class="page" id="page-today"><div id="c-today"><div class="lbox"><div class="spin"></div><div class="ltxt">Загружаю прогноз…</div></div></div></div>
+<div class="page" id="page-week"><div id="c-week"><div class="lbox"><div class="spin"></div><div class="ltxt">Загружаю неделю…</div></div></div></div>
+<div class="page" id="page-astro"><div id="c-astro"><div class="lbox"><div class="spin"></div><div class="ltxt">Считаю небеса…</div></div></div></div>
+<div class="page" id="page-profile"><div id="c-profile"></div></div>
+
+<!-- NAV -->
+<nav class="bnav">
+  <button class="nb active" data-tab="now"     onclick="go('now',this)"><span class="nb-i">🌡</span>Сейчас</button>
+  <button class="nb" data-tab="today"   onclick="go('today',this)"><span class="nb-i">📅</span>Сегодня</button>
+  <button class="nb" data-tab="week"    onclick="go('week',this)"><span class="nb-i">🗓</span>Неделя</button>
+  <button class="nb" data-tab="astro"   onclick="go('astro',this)"><span class="nb-i">🔭</span>Астро</button>
+  <button class="nb" data-tab="profile" onclick="go('profile',this)"><span class="nb-i">⚙️</span>Профиль</button>
+</nav>
+
+<!-- CITY MODAL -->
+<div class="modal" id="cityModal">
+<div class="mbox">
+  <div class="mhandle"></div>
+  <div class="mtitle">📍 Сменить город</div>
+  <div class="mhint">Введите название на русском или английском</div>
+  <input class="ci" id="cityIn" type="text" placeholder="Например: Москва или Syzran" autocomplete="off">
+  <button class="btnm" onclick="saveCity()">Сохранить</button>
+  <div class="ierr" id="cityErr">Город не найден. Проверьте название.</div>
+</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIG & STATE
+// ══════════════════════════════════════════
+const WK = 'f380753332c6f833a22c23c1144368ab';
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.expand(); tg.ready(); }
+
+let city = localStorage.getItem('wx_city') || 'Syzran';
+let msgN = +localStorage.getItem('wx_msgs') || 0;
+let isPrem = false;
+let loaded = new Set();
+
+const DP = {
+  style:    'neutral',   // neutral warm cool sport business
+  age:      'adult',     // child adult senior
+  activity: 'moderate',  // sedentary moderate active athlete
+  transport:'walk',      // walk bike car transit
+  uvSens:   'normal',    // normal high
+  petOwner: false,
+  tempPref: 'normal',    // cold normal hot
+  schedule: 'morning',   // morning evening
+  health:   [],
+  hour:     8
+};
+
+function lp() {
+  try { return { ...DP, ...JSON.parse(localStorage.getItem('wx_p') || '{}') }; }
+  catch { return { ...DP }; }
+}
+function sp(p) { localStorage.setItem('wx_p', JSON.stringify(p)); }
+let prof = lp();
+
+// ══════════════════════════════════════════
+// PRIVACY
+// ══════════════════════════════════════════
+function okPriv() {
+  localStorage.setItem('wx_priv', '1');
+  document.getElementById('priv').style.display = 'none';
+}
+if (!localStorage.getItem('wx_priv')) {
+  document.getElementById('priv').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════
+// SVG WEATHER ART (CSS-class animations — no inline style conflicts)
+// ══════════════════════════════════════════
+function mkSVG(id, isNight) {
+  // ── helpers ──
+  const cloudPath = (cx, cy, r, cls, fill='#dde6f0', op=.93) =>
+    `<g class="${cls}">
+      <ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r*.48}" fill="${fill}" opacity="${op}"/>
+      <ellipse cx="${cx - r*.3}" cy="${cy + r*.14}" rx="${r*.52}" ry="${r*.36}" fill="${fill}" opacity="${op-.05}"/>
+      <ellipse cx="${cx + r*.3}" cy="${cy + r*.15}" rx="${r*.48}" ry="${r*.34}" fill="${fill}" opacity="${op-.05}"/>
+      <ellipse cx="${cx}" cy="${cy + r*.24}" rx="${r*.66}" ry="${r*.25}" fill="${fill}" opacity="${op}"/>
+    </g>`;
+
+  const sunShape = (cx, cy, r, rays=8) => {
+    const rayLines = Array.from({length:rays}, (_,i) => {
+      const a = (i / rays) * Math.PI * 2;
+      const x1 = Math.cos(a) * (r+6), y1 = Math.sin(a) * (r+6);
+      const x2 = Math.cos(a) * (r+15), y2 = Math.sin(a) * (r+15);
+      return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#fde047" stroke-width="3" stroke-linecap="round" opacity=".8"/>`;
+    }).join('');
+    return `<g transform="translate(${cx},${cy})">
+      <g class="wx-sun-group">
+        <circle r="${r+3}" fill="#fef08a" opacity=".9"/>
+        <circle r="${r}" fill="#fde047"/>
+        <g class="wx-rays">${rayLines}</g>
+      </g>
+    </g>`;
+  };
+
+  const moonShape = (cx, cy, r) =>
+    `<g class="wx-moon">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#fef3c7" opacity=".95"/>
+      <circle cx="${cx+r*.42}" cy="${cy-r*.35}" r="${r*.78}" fill="#080d1a"/>
+    </g>`;
+
+  const rainGroup = (n, y0=88, x0=28) => {
+    const lines = Array.from({length:n}, (_,i) => {
+      const x = x0 + (i % 7) * 16 + (i > 6 ? 6 : 0);
+      const y = y0 + (i % 3) * 5;
+      return `<line x1="${x}" y1="${y}" x2="${x-4}" y2="${y+14}"/>`;
+    }).join('');
+    return `<g class="wx-rain">${lines}</g>`;
+  };
+
+  const snowGroup = (n, y0=90) => {
+    const flakes = Array.from({length:n}, (_,i) => {
+      const x = 30 + (i % 5) * 22 + (i > 4 ? 9 : 0);
+      const y = y0 + (i % 3) * 7;
+      const sz = 9 + (i % 3) * 3;
+      return `<text x="${x}" y="${y}" font-size="${sz}" fill="#bae6fd" opacity=".88" text-anchor="middle">❄</text>`;
+    }).join('');
+    return `<g class="wx-snow">${flakes}</g>`;
+  };
+
+  const starGroup = () => {
+    const pts = [[24,17],[58,9],[105,21],[138,32],[28,54],[120,46],[149,60],[17,80],[56,93],[143,88]];
+    return `<g>${pts.map(([x,y]) => `<circle cx="${x}" cy="${y}" r="1.7" fill="white" opacity=".6" class="wx-star"/>`).join('')}</g>`;
+  };
+
+  const fogGroup = () => {
+    const rows = [[18,58,118],[15,74,100],[24,90,112],[12,106,96],[20,122,86]];
+    const cls = ['wx-fog1','wx-fog2','wx-fog3','wx-fog1','wx-fog2'];
+    return rows.map(([x,y,w],i) =>
+      `<rect x="${x}" y="${y}" width="${w}" height="5" rx="2.5" fill="#8b9ab5" opacity=".42" class="${cls[i]}"/>`
+    ).join('');
+  };
+
+  const W = 160, H = 142;
+  const open = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  const close = `</svg>`;
+
+  // ── Weather cases ──
+  if (id === 800 && isNight) return open + starGroup() + moonShape(80, 68, 28) + close;
+  if (id === 800) return open + sunShape(80, 70, 26) + close;
+
+  if (id === 801 || id === 802) {
+    const bg = isNight ? moonShape(50, 48, 20) : sunShape(50, 46, 20, 6);
+    return open + bg + cloudPath(84, 72, 46, 'wx-cloud') + close;
+  }
+
+  if (id === 803 || id === 804)
+    return open + cloudPath(84, 62, 54, 'wx-cloud') + cloudPath(46, 90, 30, 'wx-cloud2', '#c8d4e3', .7) + close;
+
+  if (id >= 200 && id < 300)
+    return open +
+      cloudPath(80, 54, 55, 'wx-cloud-dark', '#475569', .95) +
+      rainGroup(8, 88) +
+      `<g class="wx-lightning"><polyline points="84,86 73,103 81,103 69,122" fill="none" stroke="#fde047" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></g>` +
+      close;
+
+  if (id >= 300 && id < 600) {
+    const heavy = id >= 502 || (id >= 520 && id < 522);
+    return open + cloudPath(80, 58, 52, 'wx-cloud', '#aab8c8', .9) + rainGroup(heavy ? 14 : 8) + close;
+  }
+
+  if (id >= 600 && id < 700)
+    return open + cloudPath(80, 54, 50, 'wx-cloud', '#c9d8e8', .9) + snowGroup(9) + close;
+
+  if (id >= 700 && id < 800)
+    return open + fogGroup() + close;
+
+  return open + cloudPath(80, 70, 50, 'wx-cloud') + close;
+}
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+function wEmoji(id, night) {
+  if (id>=200&&id<300) return '⛈';
+  if (id>=300&&id<400) return '🌦';
+  if (id===511) return '🌨';
+  if (id>=500&&id<600) return '🌧';
+  if (id>=600&&id<700) return '❄️';
+  if (id>=700&&id<800) return '🌫';
+  if (id===800) return night ? '🌙' : '☀️';
+  if (id===801||id===802) return '⛅';
+  return '☁️';
+}
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const ft2 = d => d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+const mmhg = hpa => Math.round(hpa * 0.750064);
+
+// ══════════════════════════════════════════
+// PERSONALIZATION ENGINE
+// ══════════════════════════════════════════
+function getClothesAdvice(temp, rain, p) {
+  // Base layer recommendation
+  let base, icon;
+  const effectiveTemp = p.style === 'warm' ? temp - 3 :
+                        p.style === 'cool' ? temp + 3 : temp;
+
+  if (rain)             { icon='☂️'; base='Дождь — возьмите зонт или дождевик.'; }
+  else if (effectiveTemp < -20) { icon='🥶'; base='Опасный мороз! Не выходите без крайней нужды.'; }
+  else if (effectiveTemp < -10) { icon='🧤'; base='Сильный мороз. Термобельё, пуховик, шапка, перчатки.'; }
+  else if (effectiveTemp < -2)  { icon='🧣'; base='Холодно. Тёплая куртка, шапка, шарф.'; }
+  else if (effectiveTemp < 7)   { icon='🧥'; base='Прохладно. Демисезонная куртка.'; }
+  else if (effectiveTemp < 14)  { icon='👘'; base='Комфортно. Ветровка или тёплый свитер.'; }
+  else if (effectiveTemp < 22)  { icon='👕'; base='Тепло. Лёгкая одежда.'; }
+  else                  { icon='😎'; base='Жарко! Лёгкая одежда, солнцезащитный крем.'; }
+
+  // Age modifier
+  if (p.age === 'senior') base += ' Пожилым: одевайтесь на слой теплее.';
+  if (p.age === 'child')  base += ' Детям: добавьте слой поверх.';
+
+  // Business modifier
+  if (p.style === 'business') {
+    if (temp < 10) base += ' Деловой стиль: пальто или тренч.';
+    else           base += ' Деловой стиль: пиджак или блейзер.';
+  }
+  if (p.style === 'sport') base += ' Для спорта: влагоотводящие материалы.';
+
+  return { icon, text: base };
+}
+
+function getTransportAdvice(temp, hum, wind, wid, p) {
+  const advice = [];
+  const rainy = wid >= 300 && wid < 700;
+  const snowy = wid >= 600 && wid < 700;
+  const foggy = wid >= 700 && wid < 800;
+  const icy   = temp < 0 && (wid === 800 || wid === 801);
+
+  if (p.transport === 'walk') {
+    if (rainy)      advice.push({ icon:'🌂', text:'Пешком в дождь: возьмите зонт или наденьте непромокаемую куртку.' });
+    if (icy)        advice.push({ icon:'🧊', text:'Осторожно: гололёд на тротуарах — обувь с нескользящей подошвой.' });
+    if (temp < -15) advice.push({ icon:'⚠️', text:'Длительная прогулка при сильном морозе опасна — сократите время.' });
+    if (temp > 32)  advice.push({ icon:'🥤', text:'Прогулка в жару: берите воду, избегайте открытого солнца в 11–15ч.' });
+  }
+  if (p.transport === 'bike') {
+    if (rainy)       advice.push({ icon:'🚴', text:'На велосипеде в дождь: тормоза скользят — держите дистанцию.' });
+    if (wind > 10)   advice.push({ icon:'💨', text:`Сильный ветер ${wind} м/с: боковые порывы опасны для велосипеда.` });
+    if (icy || snowy) advice.push({ icon:'🚫', text:'Лёд или снег: езда на велосипеде крайне опасна, лучше пешком.' });
+  }
+  if (p.transport === 'car') {
+    if (foggy)  advice.push({ icon:'🌫', text:'Туман: включите противотуманки, снизьте скорость.' });
+    if (snowy)  advice.push({ icon:'🚗', text:'Снег на дорогах: шипованная резина? Держите дистанцию.' });
+    if (icy)    advice.push({ icon:'🧊', text:'Гололёд: осторожно на перекрёстках, плавное торможение.' });
+    if (temp < -20) advice.push({ icon:'🔧', text:'Экстремальный мороз: прогрейте авто, проверьте масло и аккумулятор.' });
+  }
+  if (p.transport === 'transit') {
+    if (snowy || rainy) advice.push({ icon:'🚌', text:'Снег/дождь: транспорт может опаздывать — заложите запас времени.' });
+    if (temp < -15)     advice.push({ icon:'🧤', text:'Мороз на остановке: одевайтесь тепло — ожидание может быть долгим.' });
+  }
+  return advice;
+}
+
+function getActivityAdvice(temp, hum, wid, p) {
+  const advice = [];
+  const hot  = temp > 28;
+  const vhot = temp > 35;
+  const cold = temp < 0;
+
+  if (p.activity === 'athlete' || p.activity === 'active') {
+    if (vhot) advice.push({ icon:'🏃', text:'Тренировка на улице в сильную жару: перенесите на раннее утро или вечер.' });
+    else if (hot && hum > 70) advice.push({ icon:'💧', text:'Высокая температура и влажность снижают выносливость — пейте больше воды.' });
+    if (cold) advice.push({ icon:'🔥', text:'Тренировка на холоде: разминка обязательна, дышите через нос.' });
+  }
+  if (p.activity === 'sedentary') {
+    if (vhot) advice.push({ icon:'🏠', text:'Сильная жара: оставайтесь в прохладном помещении, не выходите в пик.' });
+  }
+  return advice;
+}
+
+function getPetAdvice(temp, wid, p) {
+  if (!p.petOwner) return [];
+  const advice = [];
+  const rainy = wid >= 300 && wid < 700;
+  const stormy = wid >= 200 && wid < 300;
+
+  if (temp > 30) advice.push({ icon:'🐾', text:'Жара: асфальт может обжигать лапы — прогулка ранним утром или вечером.' });
+  if (temp < -10) advice.push({ icon:'🐕', text:'Сильный мороз: сократите прогулку, проверьте лапы питомца на льду.' });
+  if (rainy) advice.push({ icon:'☂️', text:'Дождь: возьмите поводок, после прогулки вытрите лапы питомца.' });
+  if (stormy) advice.push({ icon:'⛈', text:'Гроза: многие собаки пугаются грома — лучше остаться дома.' });
+  return advice;
+}
+
+function getHealthWarnings(temp, hum, pHpa, wind, wid, p) {
+  if (!p.health || !p.health.length) return [];
+  const w = [];
+  const rainy = wid>=300&&wid<700, windy=wind>7, hot=temp>28, cold=temp<5, vcold=temp<-10;
+  const humid = hum>75, mm = mmhg(pHpa), lowP = mm < 748;
+  const month = new Date().getMonth() + 1, pol = month >= 4 && month <= 8;
+
+  const uvHigh = p.uvSens === 'high';
+
+  if (p.health.includes('allergy')) {
+    if (pol && !rainy && windy)    w.push({ok:0, t:'🤧 Аллергия: пыльца активно в воздухе. Примите антигистаминное, маска не помешает.'});
+    else if (pol && rainy)         w.push({ok:1, t:'🤧 Аллергия: дождь снизил концентрацию пыльцы — хороший момент для прогулки.'});
+    else if (pol)                  w.push({ok:0, t:'🤧 Аллергия: сезон пыльцы. Осторожнее на улице, особенно в ветреную погоду.'});
+  }
+  if (p.health.includes('asthma')) {
+    if (vcold)           w.push({ok:0, t:'🫁 Астма: очень холодный воздух раздражает дыхательные пути. Дышите через шарф, ингалятор с собой.'});
+    else if (hot&&humid) w.push({ok:0, t:'🫁 Астма: жара + высокая влажность — держите ингалятор под рукой.'});
+  }
+  if (p.health.includes('joints')) {
+    if (cold && humid) w.push({ok:0, t:'🦴 Суставы: холодная влажная погода — укутайтесь теплее, избегайте сквозняков.'});
+    else if (lowP)     w.push({ok:0, t:`🦴 Суставы: пониженное давление (${mm} мм) — возможны боли. Будьте внимательны.`});
+  }
+  if (p.health.includes('heart')) {
+    if (hot && humid) w.push({ok:0, t:'❤️ Сердце: жара + влажность нагружают ССС. Ограничьте физическую нагрузку.'});
+    else if (vcold)   w.push({ok:0, t:'❤️ Сердце: сильный мороз увеличивает нагрузку. Не спешите, одевайтесь тепло.'});
+  }
+  if (p.health.includes('migraine')) {
+    if (lowP)        w.push({ok:0, t:`🧠 Мигрень: пониженное давление (${mm} мм) — классический триггер. Подготовьтесь.`});
+    else if (hot && !humid) w.push({ok:0, t:'🧠 Мигрень: яркое солнце и жара — носите тёмные очки и шляпу.'});
+  }
+  if (p.health.includes('pressure')) {
+    if (lowP)        w.push({ok:0, t:`🩺 Давление: ${mm} мм рт.ст. — пониженное, возможно недомогание. Измерьте давление.`});
+    else if (mm > 775) w.push({ok:0, t:`🩺 Давление: ${mm} мм рт.ст. — повышенное. Контролируйте самочувствие.`});
+  }
+  if (p.health.includes('skin')) {
+    const uvThreshold = uvHigh ? 3 : 5;
+    if (wid === 800 && temp > 18) w.push({ok:0, t:`🧴 Кожа: ясно и тепло — нанесите солнцезащитный крем${uvHigh ? ' (у вас высокая UV-чувствительность)' : ''}.`});
+  }
+  return w;
+}
+
+function getUVAdvice(wid, temp, p) {
+  if (wid !== 800 && wid !== 801) return null;
+  if (temp < 12) return null;
+  const threshold = p.uvSens === 'high' ? 10 : 14;
+  const h = new Date().getHours();
+  if (h >= 10 && h <= threshold) {
+    const msg = p.uvSens === 'high'
+      ? '☀️ У вас высокая UV-чувствительность: солнцезащитный крем и головной убор обязательны!'
+      : '☀️ Активное солнце: рекомендуется солнцезащитный крем SPF 30+.';
+    return { icon: '☀️', text: msg };
+  }
+  return null;
+}
+
+function getWish(temp, p) {
+  const wishes = ['Хорошего дня!', 'Береги себя!', 'Пусть день пройдёт отлично ✨'];
+  if (p.schedule === 'evening' && new Date().getHours() < 9) return 'Доброе утро, сова 🦉';
+  if (p.schedule === 'morning' && new Date().getHours() > 18) return 'Хорошего вечера, жаворонок! 🌅';
+  if (temp < -15) return 'Мороз бодрит! Берегите нос и уши 🧊';
+  if (temp > 32)  return 'Жара! Пейте больше воды 💧';
+  return wishes[Math.floor(Math.random() * wishes.length)];
+}
+
+// Moon phase
+function moonP(d) {
+  const p=[{n:'Новолуние',e:'🌑'},{n:'Растущий серп',e:'🌒'},{n:'Первая четверть',e:'🌓'},{n:'Растущая луна',e:'🌔'},{n:'Полнолуние',e:'🌕'},{n:'Убывающая луна',e:'🌖'},{n:'Последняя четверть',e:'🌗'},{n:'Убывающий серп',e:'🌘'}];
+  const l = ((d - new Date(2001,0,1)) / 86400000 % 29.530588853) / 29.530588853;
+  return p[Math.floor(l*8)%8];
+}
+
+function uvPill(v) {
+  if (v<3) return `<span class="pill pg">UV ${v.toFixed(1)} — Низкий</span>`;
+  if (v<6) return `<span class="pill py">UV ${v.toFixed(1)} — Умеренный</span>`;
+  if (v<8) return `<span class="pill po">UV ${v.toFixed(1)} — Высокий</span>`;
+  return `<span class="pill pr">UV ${v.toFixed(1)} — Очень высокий</span>`;
+}
+function aqiPill(a) {
+  const m={1:['Хорошее','pg'],2:['Удовлетворительное','py'],3:['Умеренное','po'],4:['Плохое','pr'],5:['Очень плохое','pr']};
+  return `<span class="pill ${m[a]?.[1]||''}">${m[a]?.[0]||'—'}</span>`;
+}
+
+function chkAd() {
+  if (isPrem) return false;
+  msgN++; localStorage.setItem('wx_msgs', msgN);
+  return msgN % 5 === 0;
+}
+function adH() {
+  const a = ['<a href="#">Сервис доставки еды 🍕</a>','<a href="#">Лучшие туры ✈️</a>','<a href="#">Хороший зонт 🌂</a>'];
+  return `<div class="ad">📢 Реклама: ${a[Math.floor(Math.random()*a.length)]}</div>`;
+}
+
+const FACTS = {7:"Молния бьёт в Землю около 100 раз каждую секунду.",10:"Лёд занимает на 9% больше объёма, чем вода.",14:"Радуга — это полный круг. С самолёта видно целиком.",22:"Антарктида — самый сухой континент, но содержит 70% пресной воды Земли.",35:"Горячая вода замерзает быстрее холодной — эффект Мпемба.",46:"Жара убивает больше людей, чем все стихийные бедствия вместе.",63:"Небо синее — атмосфера рассеивает синий свет сильнее других цветов.",85:"Снег отражает до 90% солнечного света — высокое альбедо.",100:"Ежедневно в мире происходит около 40 000 гроз.",116:"Без парникового эффекта Земля была бы на 33°C холоднее.",130:"Метеорологическое лето начинается 1 июня.",163:"Небоскрёбы получают сотни ударов молнии в год — миф о «дважды» не работает.",180:"Половина года позади — 180 из 365!",208:"Метеорологическая осень начинается 1 сентября.",246:"Самый короткий день — около 21–22 декабря.",275:"Рекорд холода России: −67,8°C в Оймяконе (1933 год).",337:"Наклон земной оси — единственная причина смены сезонов.",365:"Природа завершила полный оборот вокруг Солнца!"};
+function dayFact() {
+  const n = new Date(), doy = Math.floor((n - new Date(n.getFullYear(),0,0)) / 86400000);
+  const keys = Object.keys(FACTS).map(Number).sort((a,b)=>a-b);
+  let b = keys[0]; for (const k of keys) if (k <= doy) b = k;
+  return { day: doy, text: FACTS[b] };
+}
+
+// ══════════════════════════════════════════
+// API
+// ══════════════════════════════════════════
+async function wxG(c) {
+  const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c)}&appid=${WK}&units=metric&lang=ru`);
+  if (!r.ok) throw 0;
+  return r.json();
+}
+async function fcG(c, n=40) {
+  const r = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(c)}&cnt=${n}&appid=${WK}&units=metric&lang=ru`);
+  if (!r.ok) throw 0;
+  return r.json();
+}
+
+// ══════════════════════════════════════════
+// PAGE: NOW
+// ══════════════════════════════════════════
+async function loadNow() {
+  const el = document.getElementById('c-now');
+  try {
+    const d = await wxG(city);
+    const temp  = Math.round(d.main.temp);
+    const feels = Math.round(d.main.feels_like);
+    const hum   = d.main.humidity;
+    const wind  = d.wind.speed;
+    const pres  = d.main.pressure;
+    const desc  = cap(d.weather[0].description);
+    const wid   = d.weather[0].id;
+    const now   = new Date();
+    const night = now < new Date(d.sys.sunrise*1000) || now > new Date(d.sys.sunset*1000);
+    const hasRain = wid >= 300 && wid < 700;
+    const p = prof;
+
+    const adv   = getClothesAdvice(temp, hasRain, p);
+    const trAdv = getTransportAdvice(temp, hum, wind, wid, p);
+    const actAdv= getActivityAdvice(temp, hum, wid, p);
+    const petAdv= getPetAdvice(temp, wid, p);
+    const hw    = getHealthWarnings(temp, hum, pres, wind, wid, p);
+    const uvAdv = getUVAdvice(wid, temp, p);
+    const wish  = getWish(temp, p);
+
+    // Build alerts HTML
+    const allAlerts = [...trAdv, ...actAdv, ...petAdv];
+    let alertsHtml = '';
+    if (allAlerts.length) {
+      alertsHtml = `<div class="sl">📌 Советы</div>` +
+        allAlerts.map(a => `<div class="alert card-green"><span class="alt-i">${a.icon}</span><span class="alt-t">${a.text}</span></div>`).join('');
+    }
+    if (uvAdv) {
+      alertsHtml += `<div class="alert card-orange" style="border-radius:var(--rs);margin-bottom:8px"><span class="alt-i">${uvAdv.icon}</span><span class="alt-t">${uvAdv.text}</span></div>`;
+    }
+
+    let hwHtml = '';
+    if (hw.length) {
+      hwHtml = `<div class="sl">🏥 Здоровье</div>` +
+        hw.map(w => `<div class="alert ${w.ok?'card-ok':'card-warn'}"><span class="alt-i">${w.ok?'✅':'⚠️'}</span><span class="alt-t">${w.t}</span></div>`).join('');
+    }
+
+    let premH = '';
+    if (isPrem) {
+      try {
+        const {lat,lon} = d.coord;
+        const [ar, ur] = await Promise.all([
+          fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${WK}`).then(r=>r.json()),
+          fetch(`https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=${WK}`).then(r=>r.json()).catch(()=>({value:0}))
+        ]);
+        premH = `<div class="sl">⭐ Premium</div>
+          <div class="card" style="padding:10px 15px;">
+            <div class="drow"><span class="dleft"><span class="dico">🌬</span>Качество воздуха</span>${aqiPill(ar.list[0].main.aqi)}</div>
+            <div class="drow"><span class="dleft"><span class="dico">☀️</span>UV-индекс</span>${uvPill(ur.value||0)}</div>
+          </div>`;
+      } catch {}
+    } else {
+      premH = `<div class="card card-prem" style="display:flex;align-items:center;gap:12px;padding:14px 15px;">
+        <span style="font-size:26px;flex-shrink:0">⭐</span>
+        <div><div style="font-size:14px;font-weight:800;color:var(--yel)">Premium доступен</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:2px">Качество воздуха, UV-индекс,<br>прогноз 14 дней, без рекламы.</div></div>
+      </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="gap"></div>
+      <div class="wxhero">
+        <div class="wxscene">${mkSVG(wid, night)}</div>
+        <div class="temp-big">${temp}°</div>
+        <div class="wx-desc">${desc}</div>
+        <div class="wx-feel">Ощущается как ${feels}°C</div>
+      </div>
+      <div class="srow">
+        <div class="sp"><div class="sp-i">💧</div><div class="sp-v">${hum}%</div><div class="sp-l">Влажность</div></div>
+        <div class="sp"><div class="sp-i">🌬</div><div class="sp-v">${wind.toFixed(1)}</div><div class="sp-l">м/с</div></div>
+        <div class="sp"><div class="sp-i">🧭</div><div class="sp-v">${mmhg(pres)}</div><div class="sp-l">мм рт.ст</div></div>
+      </div>
+      <div class="advice card-green">
+        <div class="adv-ico" style="background:rgba(52,211,153,.14)">${adv.icon}</div>
+        <div><div class="adv-title" style="color:var(--grn)">Одежда</div><div class="adv-text">${adv.text}</div></div>
+      </div>
+      <div class="wish">${wish}</div>
+      ${alertsHtml}
+      ${hwHtml}
+      ${premH}
+      ${chkAd() ? adH() : ''}
+      <div class="spacer"></div>`;
+  } catch {
+    el.innerHTML = `<div class="gap"></div><div class="ebox">❌ Не удалось получить погоду.<br>Проверьте название города.</div>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// PAGE: TODAY
+// ══════════════════════════════════════════
+async function loadToday() {
+  const el = document.getElementById('c-today');
+  try {
+    const d = await fcG(city, 8);
+    const today = new Date().toDateString();
+    const items = d.list.filter(f => new Date(f.dt*1000).toDateString() === today).slice(0,8);
+    if (!items.length) { el.innerHTML = `<div class="gap"></div><div class="ebox">Нет данных на сегодня.</div>`; return; }
+
+    const hoursH = items.map((f,i) => {
+      const dt = new Date(f.dt*1000);
+      const hm = dt.getHours().toString().padStart(2,'0') + ':00';
+      const t = Math.round(f.main.temp), rain = Math.round((f.pop||0)*100);
+      const ni = dt.getHours() < 6 || dt.getHours() > 20;
+      return `<div class="hc ${i===0?'now':''}">
+        <div class="hc-t">${i===0?'Сейчас':hm}</div>
+        <div class="hc-i">${wEmoji(f.weather[0].id,ni)}</div>
+        <div class="hc-v">${t}°</div>
+        ${rain>10?`<div class="hc-r">💧${rain}%</div>`:''}
+      </div>`;
+    }).join('');
+
+    const detH = items.map(f => {
+      const dt = new Date(f.dt*1000);
+      const hm = dt.getHours().toString().padStart(2,'0') + ':00';
+      const t = Math.round(f.main.temp), feels = Math.round(f.main.feels_like), rain = Math.round((f.pop||0)*100);
+      return `<div class="wrow">
+        <div class="wday"><div class="wday-n">${hm}</div><div class="wday-d">ощущ.${feels}°</div></div>
+        <div class="wico">${wEmoji(f.weather[0].id)}</div>
+        <div class="wdsc">${cap(f.weather[0].description)}<br><span style="font-size:11px">💧${rain}% · 💨${f.wind.speed.toFixed(1)} м/с</span></div>
+        <div class="wtmp">${t}°</div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="gap"></div>
+      <div class="sl">По часам</div>
+      <div class="hourly">${hoursH}</div>
+      <div class="sl">Детали</div>
+      <div class="card" style="padding:9px 15px;">${detH}</div>
+      ${chkAd()?adH():''}
+      <div class="spacer"></div>`;
+  } catch {
+    el.innerHTML = `<div class="gap"></div><div class="ebox">❌ Ошибка загрузки прогноза.</div>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// PAGE: WEEK
+// ══════════════════════════════════════════
+async function loadWeek() {
+  const el = document.getElementById('c-week');
+  try {
+    const d = await fcG(city, 40);
+    const by = {};
+    for (const f of d.list) {
+      const k = new Date(f.dt*1000).toDateString();
+      if (!by[k]) by[k] = [];
+      by[k].push(f);
+    }
+    const days = Object.entries(by).slice(0,7);
+    const wd = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+    const mo = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+    const rH = days.map(([ds,items]) => {
+      const dt = new Date(ds);
+      const name = dt.toDateString() === new Date().toDateString() ? 'Сегодня' : wd[dt.getDay()];
+      const temps = items.map(f => f.main.temp);
+      const [mn,mx] = [Math.round(Math.min(...temps)), Math.round(Math.max(...temps))];
+      const noon = items.find(f => new Date(f.dt*1000).getHours() === 12) || items[Math.floor(items.length/2)];
+      return `<div class="wrow">
+        <div class="wday"><div class="wday-n">${name}</div><div class="wday-d">${dt.getDate()} ${mo[dt.getMonth()]}</div></div>
+        <div class="wico">${wEmoji(noon.weather[0].id)}</div>
+        <div class="wdsc">${cap(noon.weather[0].description)}</div>
+        <div class="wtmp">${mx}° <span>${mn}°</span></div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="gap"></div>
+      <div class="sl">7 дней</div>
+      <div class="card" style="padding:9px 15px;">${rH}</div>
+      ${!isPrem?`<div class="card card-prem" style="display:flex;align-items:center;gap:12px;padding:14px 15px;"><span style="font-size:25px">⭐</span><div><div style="font-size:14px;font-weight:800;color:var(--yel)">Premium</div><div style="font-size:12px;color:var(--dim);margin-top:2px">Расширенный прогноз и без рекламы.</div></div></div>`:''}
+      ${chkAd()?adH():''}
+      <div class="spacer"></div>`;
+  } catch {
+    el.innerHTML = `<div class="gap"></div><div class="ebox">❌ Ошибка загрузки.</div>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// PAGE: ASTRO
+// ══════════════════════════════════════════
+async function loadAstro() {
+  const el = document.getElementById('c-astro');
+  try {
+    const d = await wxG(city);
+    const sr = new Date(d.sys.sunrise*1000), ss = new Date(d.sys.sunset*1000);
+    const dl = d.sys.sunset - d.sys.sunrise;
+    const moon = moonP(new Date());
+    const {day, text:ft} = dayFact();
+    const now = new Date();
+    const ds = now.getDate().toString().padStart(2,'0') + '.' + (now.getMonth()+1).toString().padStart(2,'0');
+
+    // Star SVG for moon card
+    const starSvg = `<svg width="100%" height="50" viewBox="0 0 320 50">
+      ${[[18,12],[55,7],[100,16],[150,8],[195,17],[240,10],[285,14],[315,6],[35,38],[80,32],[130,42],[175,30],[220,38],[270,32],[308,40]].map(([x,y],i)=>
+        `<circle cx="${x}" cy="${y}" r="${1+i%2*.5}" fill="white" opacity="${.28+i*.025}" class="wx-star"/>`
+      ).join('')}
+    </svg>`;
+
+    el.innerHTML = `<div class="gap"></div>
+      <div class="moonhero">
+        ${starSvg}
+        <div class="moon-em">${moon.e}</div>
+        <div class="moon-n">${moon.n}</div>
+        <div class="moon-s">Фаза луны сегодня</div>
+      </div>
+      <div class="agrid">
+        <div class="abox"><div class="abox-i">🌅</div><div class="abox-l">Восход</div><div class="abox-v">${ft2(sr)}</div></div>
+        <div class="abox"><div class="abox-i">🌇</div><div class="abox-l">Закат</div><div class="abox-v">${ft2(ss)}</div></div>
+      </div>
+      <div class="sl">Показатели</div>
+      <div class="card" style="padding:9px 15px;">
+        <div class="drow"><span class="dleft"><span class="dico">☀️</span>Световой день</span><span class="dval">${Math.floor(dl/3600)}ч ${Math.floor((dl%3600)/60)}м</span></div>
+        <div class="drow"><span class="dleft"><span class="dico">🌡</span>Температура</span><span class="dval">${Math.round(d.main.temp)}°C</span></div>
+        <div class="drow"><span class="dleft"><span class="dico">🧭</span>Давление</span><span class="dval">${mmhg(d.main.pressure)} мм</span></div>
+        <div class="drow"><span class="dleft"><span class="dico">🌬</span>Ветер</span><span class="dval">${d.wind.speed.toFixed(1)} м/с</span></div>
+        <div class="drow"><span class="dleft"><span class="dico">💧</span>Влажность</span><span class="dval">${d.main.humidity}%</span></div>
+      </div>
+      <div class="sl">💡 Факт дня</div>
+      <div class="facthero card-orange">
+        <div class="fdeco">💡</div>
+        <div class="ftag" style="background:rgba(251,146,60,.18);color:var(--org)">📅 ${ds}</div>
+        <div class="fbody">${ft}</div>
+        <div class="fmeta">День года: ${day} из 365</div>
+      </div>
+      ${chkAd()?adH():''}
+      <div class="spacer"></div>`;
+  } catch {
+    el.innerHTML = `<div class="gap"></div><div class="ebox">❌ Ошибка.</div>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// PAGE: PROFILE
+// ══════════════════════════════════════════
+const STYLES    = [{k:'neutral',i:'😐',n:'Нейтральный',h:'Стандартные советы'},{k:'warm',i:'🥶',n:'Мёрзну',h:'Советы одеться теплее +3°C'},{k:'cool',i:'🥵',n:'Перегреваюсь',h:'Советы одеться легче −3°C'},{k:'sport',i:'🏃',n:'Спортивный',h:'Акцент на активность и ткани'},{k:'business',i:'💼',n:'Деловой',h:'Акцент на деловой стиль'}];
+const AGES      = [{k:'child',i:'👦',n:'Ребёнок',h:'До 14 лет'},{k:'adult',i:'🧑',n:'Взрослый',h:'15–59 лет'},{k:'senior',i:'👴',n:'Пожилой',h:'60+ лет'}];
+const ACTS      = [{k:'sedentary',i:'🛋️',n:'Сидячий образ жизни',h:'Меньше физической активности'},{k:'moderate',i:'🚶',n:'Умеренная активность',h:'Ежедневные прогулки'},{k:'active',i:'🏃',n:'Активный',h:'Регулярные тренировки'},{k:'athlete',i:'🏋️',n:'Спортсмен',h:'Интенсивные тренировки каждый день'}];
+const TRANSPS   = [{k:'walk',i:'🚶',n:'Пешком',h:'Советы для пешеходов'},{k:'bike',i:'🚴',n:'Велосипед',h:'Советы для велосипедистов'},{k:'car',i:'🚗',n:'Автомобиль',h:'Советы для водителей'},{k:'transit',i:'🚌',n:'Общественный транспорт',h:'Советы для пассажиров'}];
+const UVSENSS   = [{k:'normal',i:'😎',n:'Обычная',h:'Стандартные UV-предупреждения'},{k:'high',i:'🧴',n:'Высокая',h:'Более ранние UV-предупреждения'}];
+const SCHEDULES = [{k:'morning',i:'🌅',n:'Жаворонок',h:'Ранний подъём, активный с утра'},{k:'evening',i:'🦉',n:'Сова',h:'Поздний подъём, активный вечером'}];
+const HEALTH    = [{k:'allergy',i:'🤧',n:'Аллергия на пыльцу',h:'Предупреждения в сезон'},{k:'asthma',i:'🫁',n:'Астма',h:'Дыхательные трудности'},{k:'joints',i:'🦴',n:'Боли в суставах',h:'Реакция на холод и давление'},{k:'heart',i:'❤️',n:'Сердечно-сосудистые',h:'Реакция на жару и мороз'},{k:'migraine',i:'🧠',n:'Мигрень',h:'Давление и солнце'},{k:'pressure',i:'🩺',n:'Нестабильное давление',h:'Мониторинг атм. давления'},{k:'skin',i:'🧴',n:'Чувствительная кожа',h:'UV и ветровые предупреждения'}];
+const HOURS     = [6,7,8,9,10,11,12,14,16,18,20,22];
+
+function renderProfile() {
+  const p = prof;
+  const sLabel  = STYLES.find(s=>s.k===p.style)?.n||'—';
+  const aLabel  = AGES.find(a=>a.k===p.age)?.n||'—';
+  const actLabel = ACTS.find(a=>a.k===p.activity)?.n||'—';
+  const trLabel = TRANSPS.find(t=>t.k===p.transport)?.n||'—';
+  const uvLabel = UVSENSS.find(u=>u.k===p.uvSens)?.n||'—';
+  const schLabel = SCHEDULES.find(s=>s.k===p.schedule)?.n||'—';
+  const hLabel  = (p.health||[]).map(k=>HEALTH.find(h=>h.k===k)?.n).filter(Boolean).join(', ')||'Не указано';
+
+  function ocs(arr, field) {
+    return arr.map(o => `<div class="oc${p[field]===o.k?' sel':''}" onclick="setProp('${field}','${o.k}')">
+      <span class="oc-i">${o.i}</span>
+      <div class="oc-b"><div class="oc-n">${o.n}</div><div class="oc-h">${o.h}</div></div>
+      <span class="oc-chk">✓</span>
+    </div>`).join('');
+  }
+
+  const petRow = `<div class="cc${p.petOwner?' on':''}" onclick="togglePet()">
+    <div class="cb">${p.petOwner?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>`:''}</div>
+    <div><div class="cc-n">🐕 Есть питомец</div><div class="cc-h">Советы для прогулок с животным</div></div>
+  </div>`;
+
+  const hRows = HEALTH.map(h => {
+    const on = (p.health||[]).includes(h.k);
+    const chk = on ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : '';
+    return `<div class="cc${on?' on':''}" onclick="toggleH('${h.k}')">
+      <div class="cb">${chk}</div>
+      <div><div class="cc-n">${h.i} ${h.n}</div><div class="cc-h">${h.h}</div></div>
+    </div>`;
+  }).join('');
+
+  const hBtns = HOURS.map(h =>
+    `<div class="hbtn${p.hour===h?' sel':''}" onclick="setHr(${h})">${h.toString().padStart(2,'0')}:00</div>`
+  ).join('');
+
+  document.getElementById('c-profile').innerHTML = `
+    <div class="gap"></div>
+    <div class="psumm card-blue">
+      <div class="psumm-h">⚙️ Мой профиль</div>
+      <div class="psrow"><span class="psl">📍 Город</span><span class="psv">${city}</span></div>
+      <div class="psrow"><span class="psl">👗 Стиль одежды</span><span class="psv">${sLabel}</span></div>
+      <div class="psrow"><span class="psl">👤 Возраст</span><span class="psv">${aLabel}</span></div>
+      <div class="psrow"><span class="psl">🏃 Активность</span><span class="psv">${actLabel}</span></div>
+      <div class="psrow"><span class="psl">🚗 Транспорт</span><span class="psv">${trLabel}</span></div>
+      <div class="psrow"><span class="psl">☀️ UV-чувствительность</span><span class="psv">${uvLabel}</span></div>
+      <div class="psrow"><span class="psl">🕐 Режим дня</span><span class="psv">${schLabel}</span></div>
+      <div class="psrow"><span class="psl">💊 Здоровье</span><span class="psv">${hLabel}</span></div>
+      <div class="psrow"><span class="psl">⏰ Рассылка</span><span class="psv">${p.hour.toString().padStart(2,'0')}:00</span></div>
+    </div>
+
+    <div class="psec">👗 Стиль одежды</div>${ocs(STYLES,'style')}
+    <div class="psec">👤 Возрастная группа</div>${ocs(AGES,'age')}
+    <div class="psec">🏃 Уровень активности</div>${ocs(ACTS,'activity')}
+    <div class="psec">🚗 Основной транспорт</div>${ocs(TRANSPS,'transport')}
+    <div class="psec">☀️ UV-чувствительность кожи</div>${ocs(UVSENSS,'uvSens')}
+    <div class="psec">🕐 Режим дня</div>${ocs(SCHEDULES,'schedule')}
+    <div class="psec">🐕 Питомец</div>${petRow}
+    <div class="psec">💊 Состояние здоровья <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--mu)">(можно несколько)</span></div>${hRows}
+    <div class="psec">⏰ Время рассылки</div>
+    <div class="hgrid">${hBtns}</div>
+    <div class="spacer"></div>`;
+}
+
+function setProp(field, val) {
+  prof[field] = val;
+  sp(prof);
+  loaded.delete('now');
+  renderProfile();
+}
+function togglePet() {
+  prof.petOwner = !prof.petOwner;
+  sp(prof);
+  loaded.delete('now');
+  renderProfile();
+}
+function toggleH(k) {
+  const i = (prof.health||[]).indexOf(k);
+  if (i >= 0) prof.health.splice(i,1);
+  else prof.health.push(k);
+  sp(prof);
+  loaded.delete('now');
+  renderProfile();
+}
+function setHr(h) {
+  prof.hour = h;
+  sp(prof);
+  renderProfile();
+}
+
+// ══════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════
+function go(tab, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  if (btn) btn.classList.add('active');
+  window.scrollTo({ top:0, behavior:'instant' });
+  if (tab === 'profile') { renderProfile(); return; }
+  if (!loaded.has(tab)) {
+    loaded.add(tab);
+    if (tab === 'now')   loadNow();
+    else if (tab === 'today') loadToday();
+    else if (tab === 'week')  loadWeek();
+    else if (tab === 'astro') loadAstro();
+  }
+}
+function goProfile() { go('profile', document.querySelector('[data-tab="profile"]')); }
+
+// ══════════════════════════════════════════
+// CITY MODAL
+// ══════════════════════════════════════════
+function openCity() {
+  document.getElementById('cityModal').classList.add('open');
+  setTimeout(() => document.getElementById('cityIn').focus(), 80);
+  document.getElementById('cityErr').style.display = 'none';
+  if (tg) tg.BackButton.show();
+}
+function closeCity() {
+  document.getElementById('cityModal').classList.remove('open');
+  if (tg) tg.BackButton.hide();
+}
+document.getElementById('cityModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('cityModal')) closeCity();
+});
+document.getElementById('cityIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveCity();
+});
+if (tg) tg.BackButton.onClick(() => closeCity());
+
+async function saveCity() {
+  const v = document.getElementById('cityIn').value.trim();
+  if (!v) return;
+  const err = document.getElementById('cityErr');
+  err.style.display = 'none';
+  try {
+    await wxG(v);
+    city = v;
+    localStorage.setItem('wx_city', v);
+    document.getElementById('cityLbl').textContent = v;
+    closeCity();
+    loaded.clear();
+    loaded.add('now');
+    loadNow();
+  } catch {
+    err.style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+document.getElementById('cityLbl').textContent = city;
+loaded.add('now');
+loadNow();
+</script>
+</body>
+</html>
